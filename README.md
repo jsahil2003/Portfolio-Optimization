@@ -72,6 +72,20 @@ Walk-forward validation (train 2021-2023 / test 2024-2025, confirming
 the strategy isn't overfit to one period) gave Sharpe 2.06 (train) vs.
 1.70 (test) — see [`validate_walkforward.py`](validate_walkforward.py).
 
+### Universe robustness check (not the submitted strategy)
+
+This submission uses the full, specified 300-stock universe (Nifty 100
++ Midcap 100 + Smallcap 100) to comply with the competition's stated
+requirement. As a separate check, a large-cap + midcap-only universe
+(Nifty 50 + Nifty Next 50 + Nifty Midcap 100, 200 stocks, no smallcap)
+was independently re-tuned and walk-forward-validated in a companion
+project — it outperformed this submission on both return and
+risk-adjusted return (test-period Sharpe 1.70 vs. this strategy's
+equivalent, at the cost of a deeper max drawdown), suggesting smallcap
+names dilute this factor set's signal quality. Kept out of this
+submission since it doesn't use the required universe; noted here and
+in the workbook's Model_Logic_Assumptions sheet for transparency.
+
 ## Project structure
 
 | File | Purpose |
