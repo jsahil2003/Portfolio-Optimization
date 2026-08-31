@@ -5,3 +5,13 @@ __pycache__/
 *_cache.csv
 .DS_Store
 .claude/
+
+# personal reference docs / slide deck - not part of the repo submission
+BEGINNERS_GUIDE.md
+CHANGELOG.md
+CODE_GUIDE.md
+CONCEPTS.md
+PROJECT_SUMMARY.md
+SLIDES_SCRIPT.md
+build_slides.py
+citadel_deck.pptx
