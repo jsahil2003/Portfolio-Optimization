@@ -185,6 +185,12 @@ def apply_sector_cap(weights: pd.Series, industry_by_ticker: pd.Series, sector_c
     slightly improving return, drawdown, and Sharpe over the full
     2021-2025 backtest - a real diversification benefit, not just a
     risk/return tradeoff.
+
+    NOTE: used standalone, this can push an individual stock's weight
+    above max_weight (e.g. the sole holding in an otherwise-empty sector
+    absorbing that sector's whole redistributed allowance) - see
+    apply_caps() for the version that enforces both caps jointly, used by
+    build_portfolio_weights().
     """
     w = weights.copy().astype(float)
     industries = pd.Series(w.index.map(industry_by_ticker).fillna("Unknown"), index=w.index)
@@ -205,6 +211,64 @@ def apply_sector_cap(weights: pd.Series, industry_by_ticker: pd.Series, sector_c
             break
         w[under_mask] += excess * (w[under_mask] / under_sum)
     return w / w.sum()
+
+
+def apply_caps(weights: pd.Series, industry_by_ticker: pd.Series, max_weight: float = 0.20,
+               sector_cap: float = 0.35, max_iter: int = 50) -> pd.Series:
+    """Enforce a per-stock cap and a per-sector cap simultaneously.
+
+    Doing these two caps independently (apply_sector_cap() then
+    cap_weights(), or the reverse) doesn't reliably converge to a point
+    that satisfies both: sector redistribution can push a single stock
+    above max_weight (e.g. the lone holding in an otherwise-empty sector
+    absorbing that whole sector's redistributed room - observed pushing
+    a stock to 30% despite a 20% per-stock cap), and naively alternating
+    the two operators can settle at a fixed point where the sector cap
+    is violated instead.
+
+    A per-stock or per-sector cap is only an *upper* bound - scaling a
+    capped stock/sector back down further never violates it - so each
+    iteration simply re-clips every stock to max_weight, scales down any
+    over-cap sector (its members included, even ones just clipped),
+    then redistributes any resulting shortfall only into stocks that
+    have genuine headroom on *both* dimensions. Repeats until stable;
+    self-correcting because a redistribution that overshoots either cap
+    gets caught and re-clipped on the next pass.
+
+    When the two caps make full investment mathematically impossible
+    (e.g. two stocks in one sector each already at max_weight sum to
+    more than sector_cap, or a single-member sector is bounded by
+    max_weight below what sector_cap would otherwise allow), the
+    unallocated remainder is left as cash - same convention as the
+    vol_target overlay - rather than breaking a cap to force full
+    investment.
+    """
+    w = (weights / weights.sum()).astype(float)
+    industries = pd.Series(w.index.map(industry_by_ticker).fillna("Unknown"), index=w.index)
+
+    for _ in range(max_iter):
+        before = w.copy()
+
+        w = w.clip(upper=max_weight)
+
+        sector_weight = w.groupby(industries).sum()
+        over_sectors = sector_weight[sector_weight > sector_cap + 1e-10]
+        for sector, total in over_sectors.items():
+            mask = industries == sector
+            w[mask] *= sector_cap / total
+
+        shortfall = 1.0 - w.sum()
+        if shortfall > 1e-10:
+            sector_weight = w.groupby(industries).sum()
+            headroom_mask = (w < max_weight - 1e-10) & (industries.map(sector_weight) < sector_cap - 1e-10)
+            headroom_sum = w[headroom_mask].sum()
+            if headroom_sum > 0:
+                w[headroom_mask] += shortfall * (w[headroom_mask] / headroom_sum)
+
+        if w.sub(before, fill_value=0).abs().max() < 1e-10:
+            break
+
+    return w
 
 
 def portfolio_realized_vol(log_ret: pd.DataFrame, tickers: list, weights: pd.Series,
@@ -374,7 +438,7 @@ def build_portfolio_weights(prices: pd.DataFrame, log_ret: pd.DataFrame,
             continue
         prev_holdings = picks
         if sector_cap is not None:
-            weights = apply_sector_cap(weights, industry_by_ticker, sector_cap=sector_cap)
+            weights = apply_caps(weights, industry_by_ticker, max_weight=max_weight, sector_cap=sector_cap)
         if vol_target is not None:
             if vol_target_use_garch:
                 realized_vol = portfolio_garch_vol(log_ret, picks, weights, d)

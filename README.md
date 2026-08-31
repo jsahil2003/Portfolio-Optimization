@@ -35,12 +35,42 @@ Ledoit-Wolf shrinkage minimum-variance weighting, capped at 20% per name
 and 35% per NSE industry sector (the sector cap prevents the picks from
 concentrating in one sector when momentum/low-vol/52-week-high all favor
 it at once — backtested to remove every >40%-in-one-sector rebalance
-while slightly improving return, drawdown, and Sharpe). Rebalanced
-monthly, in whole shares only.
+while slightly improving return, drawdown, and Sharpe). Both caps are
+enforced jointly (`portfolio.apply_caps()`): on the rare month where a
+20%-per-stock and 35%-per-sector allocation can't both be satisfied at
+full investment (e.g. two picks already at 20% each in the same sector),
+the unallocated remainder is held as cash rather than breaking either
+cap — averages 98.9% invested. Rebalanced monthly, in whole shares only.
 
 The factor weights (40/25/10/15/10) were tuned on 2021-2023 data and
 confirmed out-of-sample on unseen 2024-2025 data — see
 [`validate_walkforward.py`](validate_walkforward.py).
+
+## Results (as of 2026-08-31)
+
+> **Note:** these numbers are dynamic, not fixed. `universe.py` pulls the
+> stock universe live from niftyindices.com and `data.py` pulls prices
+> live via yfinance on every run — if you `python citadel.py` on a later
+> date, the universe composition, price history revisions, and results
+> below can all change. Treat this snapshot as "what the strategy
+> produced on 2026-08-31," not a permanent number; re-run the pipeline
+> for a current figure.
+
+| Metric | This strategy | Nifty 50 | Nifty 500 TMI |
+|---|---|---|---|
+| Total Net PNL | ₹4.81 crore | — | — |
+| Annualized Return | 43.3% | 13.4% | 15.5% |
+| Max Drawdown | -18.9% | -17.2% | -18.8% |
+| Sharpe Ratio | 1.89 | 0.97 | 1.07 |
+| Gain-to-Loss Ratio | 1.61 | — | — |
+| Accuracy (win rate) | 69.1% | — | — |
+| Total Trades | 703 | — | — |
+| Total Transaction Cost | ₹14.1 lakh | — | — |
+
+Backtest period 2021-01-01 to 2025-12-31, ₹1,00,00,000 starting capital.
+Walk-forward validation (train 2021-2023 / test 2024-2025, confirming
+the strategy isn't overfit to one period) gave Sharpe 2.06 (train) vs.
+1.70 (test) — see [`validate_walkforward.py`](validate_walkforward.py).
 
 ## Project structure
 

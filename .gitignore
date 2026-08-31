@@ -18,3 +18,10 @@ citadel_deck.pptx
 
 # sandbox experiments - do not affect the submitted strategy
 experiments/
+
+# standalone report (html/pdf/xlsx) - not part of the repo submission
+build_report.py
+build_report_xlsx.py
+citadel_report.html
+citadel_report.pdf
+citadel_report.xlsx
