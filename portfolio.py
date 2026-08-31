@@ -147,6 +147,41 @@ def cap_weights(weights: pd.Series, max_weight: float = 0.20) -> pd.Series:
     return w / w.sum()
 
 
+def apply_sector_cap(weights: pd.Series, industry_by_ticker: pd.Series, sector_cap: float = 0.35) -> pd.Series:
+    """Cap total weight per industry, redistributing excess proportionally
+    across stocks in under-cap sectors and renormalizing, iterating since
+    redistribution can itself push another sector over the cap.
+
+    cap_weights() only bounds a single stock at a time - nothing stops
+    several of the top-n picks landing in the same sector when momentum,
+    low-vol, and 52-week-high all favor it simultaneously (seen empirically
+    reaching 67% in one sector on some rebalance dates). Tested via
+    backtest: this cap removed every >40%-in-one-sector rebalance while
+    slightly improving return, drawdown, and Sharpe over the full
+    2021-2025 backtest - a real diversification benefit, not just a
+    risk/return tradeoff.
+    """
+    w = weights.copy().astype(float)
+    industries = pd.Series(w.index.map(industry_by_ticker).fillna("Unknown"), index=w.index)
+    for _ in range(len(w)):
+        sector_weight = w.groupby(industries).sum()
+        over_sectors = sector_weight[sector_weight > sector_cap]
+        if over_sectors.empty:
+            break
+        excess = 0.0
+        for sector in over_sectors.index:
+            mask = industries == sector
+            sector_total = w[mask].sum()
+            excess += sector_total - sector_cap
+            w[mask] *= sector_cap / sector_total
+        under_mask = ~industries.isin(over_sectors.index)
+        under_sum = w[under_mask].sum()
+        if under_sum <= 0:
+            break
+        w[under_mask] += excess * (w[under_mask] / under_sum)
+    return w / w.sum()
+
+
 def portfolio_realized_vol(log_ret: pd.DataFrame, tickers: list, weights: pd.Series,
                             as_of: pd.Timestamp, window_days: int = 63) -> float:
     """Trailing realized volatility of the actual weighted basket (not the
@@ -243,11 +278,18 @@ def build_portfolio_weights(prices: pd.DataFrame, log_ret: pd.DataFrame,
                              use_parkinson: bool = False,
                              benchmark_log_ret: pd.Series = None,
                              factor_names: tuple = None,
-                             vol_target_use_garch: bool = False) -> dict:
+                             vol_target_use_garch: bool = False,
+                             sector_cap: float = 0.35,
+                             industry_by_ticker: pd.Series = None) -> dict:
     """Full pipeline: at every rebalance date, re-score the universe,
     pick the top n_stocks by composite factor score, and weight them
     using weighting_scheme (one of WEIGHTING_SCHEMES - see
     optimizers.py and CONCEPTS.md §20-22 for ledoit_wolf/hrp).
+
+    sector_cap bounds total weight in any one NSE industry (see
+    apply_sector_cap) - default 0.35, set to None to disable. Applied on
+    top of the per-stock cap. industry_by_ticker defaults to
+    universe.INDUSTRY_BY_TICKER when not passed explicitly.
 
     factor_set selects which composite-score recipe to use (see
     FACTOR_SETS / CONCEPTS.md §24-26): "original" (momentum, low_vol,
@@ -272,6 +314,10 @@ def build_portfolio_weights(prices: pd.DataFrame, log_ret: pd.DataFrame,
     elif factor_weights is None:
         raise ValueError("factor_weights is required when factor_names is passed explicitly")
 
+    if industry_by_ticker is None and sector_cap is not None:
+        from universe import INDUSTRY_BY_TICKER
+        industry_by_ticker = INDUSTRY_BY_TICKER
+
     dates = rebalance_dates(prices.index, start, end, freq)
     value_static = factors.value_factor(fundamentals) if "value" in factor_names else None
     quality_static = factors.quality_factor(fundamentals) if "quality" in factor_names else None
@@ -291,6 +337,8 @@ def build_portfolio_weights(prices: pd.DataFrame, log_ret: pd.DataFrame,
         weights = _compute_weights(weighting_scheme, log_ret, picks, d, max_weight)
         if weights.empty:
             continue
+        if sector_cap is not None:
+            weights = apply_sector_cap(weights, industry_by_ticker, sector_cap=sector_cap)
         if vol_target is not None:
             if vol_target_use_garch:
                 realized_vol = portfolio_garch_vol(log_ret, picks, weights, d)

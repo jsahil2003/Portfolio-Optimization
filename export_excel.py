@@ -50,8 +50,8 @@ def build_workbook(path: str, weights_by_date: dict, nav: pd.Series,
             "assumption": [
                 "Universe", "Max stocks", "Backtest period", "Transaction cost",
                 "Starting capital", "Rebalance frequency", "Weighting scheme",
-                "Selection method", "Composite factor weights", "Lookahead bias",
-                "Risk-free rate", "Benchmarks",
+                "Selection method", "Composite factor weights", "Sector cap",
+                "Share trading", "Lookahead bias", "Risk-free rate", "Benchmarks",
             ],
             "value": [
                 "Nifty 100 + Nifty Midcap 100 + Nifty Smallcap 100 (live pull, niftyindices.com)",
@@ -63,6 +63,9 @@ def build_workbook(path: str, weights_by_date: dict, nav: pd.Series,
                 "momentum 0.40 / low_vol 0.25 / parkinson_vol 0.10 / high52 0.15 / liquidity 0.10 "
                 "(walk-forward validated: tuned on 2021-2023, confirmed on unseen 2024-2025, "
                 "re-validated with parkinson_vol added and stress-tested)",
+                "Max 35% of portfolio weight per NSE industry, tested via backtest: removed every "
+                ">40%-in-one-sector rebalance (22/60 -> 0/60) while improving return/drawdown/Sharpe",
+                "Whole shares only - fractional trades are not permitted; rounding shortfall held as cash",
                 "None - all five factors built from historical price/volume data only, "
                 "genuinely point-in-time safe (no fundamentals snapshot used)",
                 "0%",

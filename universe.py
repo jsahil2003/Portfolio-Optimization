@@ -74,3 +74,9 @@ NIFTY_SMALLCAP_100_TICKERS = _tickers_for(_universe_df, "smallcap100")
 FULL_UNIVERSE = sorted(set(
     NIFTY100_TICKERS + NIFTY_MIDCAP_100_TICKERS + NIFTY_SMALLCAP_100_TICKERS
 ))
+
+# Ticker -> NSE industry classification, from the same niftyindices.com pull
+# (not a live fundamentals snapshot, so no lookahead-bias concern). Used by
+# portfolio.py to keep the composite-score picks from concentrating in one
+# sector.
+INDUSTRY_BY_TICKER = _universe_df.drop_duplicates("ticker").set_index("ticker")["Industry"]

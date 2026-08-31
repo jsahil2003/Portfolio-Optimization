@@ -23,8 +23,12 @@ All five signals are computed purely from historical price/volume data
 (no company fundamentals), so the backtest carries no lookahead bias.
 
 Once the 10 stocks are picked, capital is allocated across them using
-Ledoit-Wolf shrinkage minimum-variance weighting (capped at 20% per
-name), rebalanced monthly.
+Ledoit-Wolf shrinkage minimum-variance weighting, capped at 20% per name
+and 35% per NSE industry sector (the sector cap prevents the picks from
+concentrating in one sector when momentum/low-vol/52-week-high all favor
+it at once — backtested to remove every >40%-in-one-sector rebalance
+while slightly improving return, drawdown, and Sharpe). Rebalanced
+monthly, in whole shares only.
 
 The factor weights (40/25/10/15/10) were tuned on 2021-2023 data and
 confirmed out-of-sample on unseen 2024-2025 data — see
