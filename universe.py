@@ -1,9 +1,9 @@
 """
-Investment universe: live pull of Nifty 50 + Nifty Next 50 + Nifty
-Midcap 100 constituents (large-cap and midcap stocks) directly from
-niftyindices.com - the official source, so this always reflects the
-current index composition rather than a hand-typed snapshot that goes
-stale when NSE Indices rebalances (twice a year, Mar/Sep).
+Investment universe: live pull of Nifty 100, Nifty Midcap 100, and Nifty
+Smallcap 100 constituents directly from niftyindices.com - the official
+source, so this always reflects the current index composition rather than
+a hand-typed snapshot that goes stale when NSE Indices rebalances (twice a
+year, Mar/Sep).
 
 Falls back to a local CSV cache (universe_cache.csv, next to this file) if
 niftyindices.com is unreachable - constituents only change twice a year,
@@ -21,14 +21,14 @@ CACHE_PATH = Path(__file__).parent / "universe_cache.csv"
 
 # niftyindices.com's own file-naming convention for each index's constituent CSV.
 INDEX_FILES = {
-    "nifty50": "nifty50",
-    "niftynext50": "niftynext50",
+    "nifty100": "nifty100",
     "midcap100": "niftymidcap100",
+    "smallcap100": "niftysmallcap100",
 }
 
 
 def get_index_constituents(index_name: str) -> pd.DataFrame:
-    """Pull the live constituent list for one NSE index (e.g. 'nifty50')."""
+    """Pull the live constituent list for one NSE index (e.g. 'nifty100')."""
     url = f"https://niftyindices.com/IndexConstituent/ind_{index_name}list.csv"
     headers = {"User-Agent": "Mozilla/5.0"}
     resp = requests.get(url, headers=headers, timeout=15)
@@ -37,10 +37,9 @@ def get_index_constituents(index_name: str) -> pd.DataFrame:
 
 
 def load_universe(cache_path: Path = CACHE_PATH) -> pd.DataFrame:
-    """Fetch the Nifty 50, Nifty Next 50, and Nifty Midcap 100 constituent
-    lists live, tag each with its source index, and cache the combined
-    result to disk. Falls back to the cache if the live pull fails (e.g.
-    no network) and a cache exists.
+    """Fetch all three index constituent lists live, tag each row with its
+    source index, and cache the combined result to disk. Falls back to the
+    cache if the live pull fails (e.g. no network) and a cache exists.
     """
     try:
         frames = []
@@ -68,12 +67,12 @@ def _tickers_for(universe_df: pd.DataFrame, label: str) -> list:
 
 _universe_df = load_universe()
 
-NIFTY50_TICKERS = _tickers_for(_universe_df, "nifty50")
-NIFTY_NEXT_50_TICKERS = _tickers_for(_universe_df, "niftynext50")
+NIFTY100_TICKERS = _tickers_for(_universe_df, "nifty100")
 NIFTY_MIDCAP_100_TICKERS = _tickers_for(_universe_df, "midcap100")
+NIFTY_SMALLCAP_100_TICKERS = _tickers_for(_universe_df, "smallcap100")
 
 FULL_UNIVERSE = sorted(set(
-    NIFTY50_TICKERS + NIFTY_NEXT_50_TICKERS + NIFTY_MIDCAP_100_TICKERS
+    NIFTY100_TICKERS + NIFTY_MIDCAP_100_TICKERS + NIFTY_SMALLCAP_100_TICKERS
 ))
 
 # Ticker -> NSE industry classification, from the same niftyindices.com pull
