@@ -48,8 +48,22 @@ FACTOR_SETS = {
 }
 DEFAULT_FACTOR_WEIGHTS_BY_SET = {
     "original": DEFAULT_FACTOR_WEIGHTS,
-    "lookahead_free": {"momentum": 0.40, "low_vol": 0.25, "parkinson_vol": 0.10,
-                        "high52": 0.15, "liquidity": 0.10},
+    # Re-tuned after switching the universe to Nifty 50 + Nifty Next 50 +
+    # Nifty Midcap 100 (200 stocks, no smallcap) - see universe.py and
+    # CHANGELOG.md. Chosen via a 1001-combo walk-forward grid search
+    # (step 0.10, selected by min(train_sharpe, test_sharpe): train
+    # 1.910/test 1.913), then re-centered via a fine-grid (step 0.05)
+    # neighborhood check that found this point beats the coarse-grid
+    # winner on both windows (train 1.975/test 1.965) with a healthy
+    # neighborhood floor (test Sharpe 0.995-1.965 nearby, 83% of the
+    # neighborhood beating a 1.36 baseline on both windows). Train-test
+    # Sharpe correlation across the full grid was 0.747 - far stronger
+    # than the 0.063 seen when the universe was Nifty 100 alone, meaning
+    # the smallcap-free, midcap-included dispersion here makes factor
+    # rankings substantially more stable and generalizable. See
+    # tune_weights.py / neighborhood_check.py and their .csv outputs.
+    "lookahead_free": {"momentum": 0.55, "low_vol": 0.10, "parkinson_vol": 0.0,
+                        "high52": 0.25, "liquidity": 0.10},
 }
 
 

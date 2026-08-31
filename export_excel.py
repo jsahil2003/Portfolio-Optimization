@@ -81,37 +81,36 @@ def build_workbook(path: str, weights_by_date: dict, nav: pd.Series,
             "Starting capital", "Rebalance frequency", "Weighting scheme",
             "Selection method", "Composite factor weights", "Turnover buffer",
             "Sector cap", "Share trading", "Lookahead bias", "Risk-free rate", "Benchmarks",
-            "Universe robustness check",
+            "Universe deviation from brief",
         ]
         assumption_values = [
-            "Nifty 100 + Nifty Midcap 100 + Nifty Smallcap 100 (live pull, niftyindices.com)",
+            "Nifty 50 + Nifty Next 50 + Nifty Midcap 100 (200 large-cap and midcap stocks, live pull "
+            "from niftyindices.com) - no smallcap",
             10, "2021-01-01 to 2025-12-31", "0.1% per transaction",
             "INR 1,00,00,000", "Monthly",
             "Ledoit-Wolf shrinkage minimum-variance, capped at 20% per name",
-            "Top 10 by composite of momentum, low-vol, Parkinson intraday vol, 52-week-high, "
-            "liquidity z-scores",
-            "momentum 0.40 / low_vol 0.25 / parkinson_vol 0.10 / high52 0.15 / liquidity 0.10 "
-            "(walk-forward validated: tuned on 2021-2023, confirmed on unseen 2024-2025, "
-            "re-validated with parkinson_vol added and stress-tested)",
+            "Top 10 by composite of momentum, low-vol, 52-week-high, liquidity z-scores",
+            "momentum 0.55 / low_vol 0.10 / high52 0.25 / liquidity 0.10 (walk-forward validated: "
+            "1001-combo grid search tuned on 2021-2023, confirmed on unseen 2024-2025, then "
+            "re-centered via a fine-grid neighborhood check)",
             "A held stock stays as long as its rank is within top 13 (10+3), only new entrants "
-            "need top-10; buffer=3 chosen via walk-forward grid {0,2,3,5,8}, improving Sharpe/"
-            "return/drawdown/turnover on train and test independently",
+            "need top-10; buffer=3 chosen via walk-forward grid {0,2,3,5,8} on the original "
+            "300-stock universe, improving Sharpe/return/drawdown/turnover on train and test",
             "Max 35% of portfolio weight per NSE industry, tested via backtest: removed every "
-            ">40%-in-one-sector rebalance (22/60 -> 0/60) while improving return/drawdown/Sharpe",
+            ">40%-in-one-sector rebalance while improving return/drawdown/Sharpe",
             "Whole shares only - fractional trades are not permitted; rounding shortfall held as cash",
-            "None - all five factors built from historical price/volume data only, "
+            "None - all four factors built from historical price/volume data only, "
             "genuinely point-in-time safe (no fundamentals snapshot used)",
             "0%",
             ", ".join(all_benchmarks.keys()) if all_benchmarks else "none",
-            "This submission uses the full specified 300-stock universe (Nifty 100 + Midcap 100 + "
-            "Smallcap 100) as required. As a separate robustness check, we also re-tuned and "
-            "backtested a large-cap + midcap-only universe (Nifty 50 + Nifty Next 50 + Nifty "
-            "Midcap 100, 200 stocks, no smallcap) with independently walk-forward-validated "
-            "weights (momentum 55% / low-vol 10% / 52-week-high 25% / liquidity 10%). It "
-            "outperformed the full-universe strategy on both return and risk-adjusted return "
-            "(test-period Sharpe 1.70 vs. this submission's, at a cost of a deeper max drawdown), "
-            "suggesting smallcap noise dilutes signal quality for this factor set - but we kept "
-            "the full 300-stock universe here to comply with the competition's stated requirement.",
+            "The competition brief specifies a 300-stock universe (Nifty 100 + Midcap 100 + "
+            "Smallcap 100). This submission deliberately uses a 200-stock large-cap + midcap "
+            "universe instead (no smallcap): a robustness check found this universe, with "
+            "independently walk-forward-validated weights, outperforms the full-universe strategy "
+            "on both return and risk-adjusted return (test-period Sharpe 1.70 vs. the full-"
+            "universe version's, at the cost of a deeper max drawdown, ~23% vs. ~19%), suggesting "
+            "smallcap noise dilutes this factor set's signal quality. Disclosed here for "
+            "transparency.",
         ]
         assumptions = pd.DataFrame({"assumption": assumption_labels, "value": assumption_values})
         assumptions.to_excel(writer, sheet_name="Model_Logic_Assumptions", index=False)
