@@ -22,6 +22,14 @@ composite score are held for that month.
 All five signals are computed purely from historical price/volume data
 (no company fundamentals), so the backtest carries no lookahead bias.
 
+Every month, a currently-held stock stays in the portfolio as long as
+its rank doesn't fall outside the top 13 (10 + a buffer of 3) — only a
+new entrant needs to actually reach the top 10. This "buffer zone" cuts
+trading driven by noisy, near-tied rank swaps between similarly-scored
+stocks; the buffer size was chosen via the same train/test discipline as
+the factor weights (grid {0,2,3,5,8}, 3 improved Sharpe, return,
+drawdown, and turnover on both windows independently).
+
 Once the 10 stocks are picked, capital is allocated across them using
 Ledoit-Wolf shrinkage minimum-variance weighting, capped at 20% per name
 and 35% per NSE industry sector (the sector cap prevents the picks from

@@ -107,6 +107,31 @@ def select_top_n(scores: pd.Series, n: int = 10) -> list:
     return scores.dropna().sort_values(ascending=False).head(n).index.tolist()
 
 
+def select_top_n_with_buffer(scores: pd.Series, prev_holdings: list, n: int = 10,
+                              buffer: int = 3) -> list:
+    """Turnover-reduction "buffer zone" selection: a currently-held stock
+    stays in as long as its rank is within top (n + buffer), not strictly
+    top n - only new entrants still need to actually rank in the top n.
+    Cuts trading driven by noisy near-tied re-ranking each month.
+
+    buffer=3 chosen via walk-forward backtest across {0,2,3,5,8}: 3 beat
+    the no-buffer baseline on both an independent train (2021-2023) and
+    test (2024-2025) window on every metric (Sharpe, return, drawdown,
+    turnover), sitting at the peak of a clean rise-then-fall across the
+    grid rather than an isolated spike (CONCEPTS.md §38).
+    """
+    ranked = scores.dropna().sort_values(ascending=False)
+    ranks = {ticker: i + 1 for i, ticker in enumerate(ranked.index)}
+
+    picks = [t for t in prev_holdings if ranks.get(t, float("inf")) <= n + buffer]
+    for t in ranked.index:
+        if len(picks) >= n:
+            break
+        if t not in picks:
+            picks.append(t)
+    return picks[:n]
+
+
 def inverse_vol_weights(log_ret: pd.DataFrame, tickers: list, as_of: pd.Timestamp,
                          window_days: int = 126) -> pd.Series:
     """Weight each name inversely to its trailing volatility, normalized to sum to 1.
@@ -280,7 +305,8 @@ def build_portfolio_weights(prices: pd.DataFrame, log_ret: pd.DataFrame,
                              factor_names: tuple = None,
                              vol_target_use_garch: bool = False,
                              sector_cap: float = 0.35,
-                             industry_by_ticker: pd.Series = None) -> dict:
+                             industry_by_ticker: pd.Series = None,
+                             turnover_buffer: int = 3) -> dict:
     """Full pipeline: at every rebalance date, re-score the universe,
     pick the top n_stocks by composite factor score, and weight them
     using weighting_scheme (one of WEIGHTING_SCHEMES - see
@@ -290,6 +316,11 @@ def build_portfolio_weights(prices: pd.DataFrame, log_ret: pd.DataFrame,
     apply_sector_cap) - default 0.35, set to None to disable. Applied on
     top of the per-stock cap. industry_by_ticker defaults to
     universe.INDUSTRY_BY_TICKER when not passed explicitly.
+
+    turnover_buffer (see select_top_n_with_buffer) keeps a held stock in
+    the portfolio as long as its rank is within top (n_stocks + buffer),
+    reducing trading driven by noisy near-tied re-ranking - default 3,
+    set to 0 to disable and select strictly top n_stocks every rebalance.
 
     factor_set selects which composite-score recipe to use (see
     FACTOR_SETS / CONCEPTS.md §24-26): "original" (momentum, low_vol,
@@ -323,6 +354,7 @@ def build_portfolio_weights(prices: pd.DataFrame, log_ret: pd.DataFrame,
     quality_static = factors.quality_factor(fundamentals) if "quality" in factor_names else None
 
     weights_by_date = {}
+    prev_holdings = []
     for d in dates:
         factor_series = {
             name: _factor_series(name, d, prices, log_ret, high, low, volume,
@@ -330,13 +362,17 @@ def build_portfolio_weights(prices: pd.DataFrame, log_ret: pd.DataFrame,
             for name in factor_names
         }
         composite = factors.composite_score(factor_series, weights=factor_weights)
-        picks = select_top_n(composite, n=n_stocks)
+        if turnover_buffer:
+            picks = select_top_n_with_buffer(composite, prev_holdings, n=n_stocks, buffer=turnover_buffer)
+        else:
+            picks = select_top_n(composite, n=n_stocks)
         if not picks:
             continue
 
         weights = _compute_weights(weighting_scheme, log_ret, picks, d, max_weight)
         if weights.empty:
             continue
+        prev_holdings = picks
         if sector_cap is not None:
             weights = apply_sector_cap(weights, industry_by_ticker, sector_cap=sector_cap)
         if vol_target is not None:
