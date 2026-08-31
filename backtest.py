@@ -41,7 +41,9 @@ def run_backtest(prices: pd.DataFrame, weights_by_date: dict,
             for t in target_weights.index:
                 px = day_prices.get(t, np.nan)
                 if pd.notna(px) and px > 0:
-                    target_shares[t] = (current_value * target_weights[t]) / px
+                    # Whole shares only - fractional share trading isn't
+                    # permitted, so round down and let the shortfall sit in cash.
+                    target_shares[t] = np.floor((current_value * target_weights[t]) / px)
 
             trade_shares = target_shares - current_shares
             trade_shares = trade_shares[trade_shares.abs() > 1e-9]

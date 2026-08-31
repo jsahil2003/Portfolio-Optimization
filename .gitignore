@@ -15,3 +15,6 @@ PROJECT_SUMMARY.md
 SLIDES_SCRIPT.md
 build_slides.py
 citadel_deck.pptx
+
+# sandbox experiments - do not affect the submitted strategy
+experiments/

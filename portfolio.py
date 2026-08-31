@@ -122,7 +122,7 @@ def inverse_vol_weights(log_ret: pd.DataFrame, tickers: list, as_of: pd.Timestam
     return inv_vol / inv_vol.sum()
 
 
-def cap_weights(weights: pd.Series, max_weight: float = 0.30) -> pd.Series:
+def cap_weights(weights: pd.Series, max_weight: float = 0.20) -> pd.Series:
     """Cap any single position at max_weight, redistributing the excess
     proportionally across the uncapped names, then renormalize.
 
